@@ -1,0 +1,19 @@
+{
+  "name": "secure-rag-rbac",
+  "version": "0.1.0",
+  "description": "Build enterprise RAG systems where authorization is enforced inside the retrieval operation via vector metadata pre-filtering — FastAPI, PostgreSQL, Qdrant/Milvus/Pinecone/pgvector, Next.js, plus a developer console for inspecting the filter and a leak-test harness for CI.",
+  "keywords": [
+    "rag",
+    "rbac",
+    "vector-database",
+    "access-control",
+    "pre-filtering",
+    "multi-tenant",
+    "fastapi",
+    "qdrant",
+    "pgvector",
+    "security"
+  ],
+  "skills": ["./SKILL.md"],
+  "license": "MIT"
+}

@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest==8.3.4
+pytest-asyncio==0.25.0
+ruff==0.8.4
+mypy==1.14.0
+# Optional: the cross-encoder reranker. The pipeline runs without it using a
+# lexical fallback, so CI stays light — install this to measure the real gain.
+sentence-transformers==3.3.1

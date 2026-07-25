@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RBAC RAG — retrieval console</title>
+<style>
+  :root {
+    --bg: #16171a; --panel: #1e2024; --panel-2: #24262b; --line: #33363d;
+    --text: #e6e6e4; --muted: #9a9d a5; --muted: #9a9da5;
+    --ok: #5dcaa5; --block: #e24b4a; --accent: #85b7eb; --warn: #efa027;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 15px; font-weight: 500; margin: 0; }
+  header .status { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--block); margin-right: 6px; }
+  .dot.up { background: var(--ok); }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 0; min-height: calc(100vh - 55px); }
+  aside { border-right: 1px solid var(--line); padding: 20px; background: var(--panel); }
+  section { padding: 20px; overflow: auto; }
+  label { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+  input, select, textarea, button {
+    width: 100%; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font: inherit;
+  }
+  textarea { min-height: 76px; resize: vertical; font-family: var(--mono); font-size: 13px; }
+  button {
+    background: var(--accent); color: #08243f; border: none; font-weight: 600;
+    cursor: pointer; margin-top: 18px;
+  }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); font-weight: 400; margin-top: 8px; }
+  .principal { margin-top: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); font-size: 13px; }
+  .principal div { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+  .principal span:first-child { color: var(--muted); }
+  .metrics { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .metric { flex: 1 1 130px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .metric .n { font-size: 24px; font-weight: 600; font-family: var(--mono); }
+  .metric .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .metric.blocked .n { color: var(--block); }
+  .metric.allowed .n { color: var(--ok); }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 500; margin: 22px 0 8px; }
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; overflow: auto; font-family: var(--mono); font-size: 12.5px; margin: 0;
+  }
+  .chunk { border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 0 8px 8px 0; padding: 12px 14px; margin-bottom: 10px; background: var(--panel); }
+  .chunk .meta { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+  .chunk .body { font-size: 13px; color: #cfcfcb; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-family: var(--mono); background: #1d3f56; color: #9fd0f0; margin-right: 4px; }
+  .banner { padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+  .banner.warn { background: #3a2a10; border: 1px solid #6b4a12; color: #f0c579; }
+  .banner.err { background: #3a1717; border: 1px solid #6b2222; color: #f3a3a3; }
+  .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
+  code { font-family: var(--mono); font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RBAC RAG · retrieval console</h1>
+  <span style="font-size:12px;color:var(--muted)">local development only</span>
+  <span class="status"><span class="dot" id="dot"></span><span id="statusText">not connected</span></span>
+</header>
+
+<main>
+  <aside>
+    <label for="api">Backend</label>
+    <input id="api" value="http://localhost:8000">
+
+    <label for="email">Sign in as</label>
+    <input id="email" value="intern@acme.test" placeholder="user@example.com">
+
+    <label for="password">Password</label>
+    <input id="password" type="password" value="devpassword">
+
+    <button id="loginBtn">Sign in</button>
+
+    <div class="principal" id="principal" hidden>
+      <div><span>role</span><strong id="pRole">—</strong></div>
+      <div><span>clearance</span><strong id="pClear">—</strong></div>
+      <div><span>tenant</span><strong id="pTenant">—</strong></div>
+    </div>
+
+    <label for="query">Query</label>
+    <textarea id="query">What is the CEO's salary?</textarea>
+
+    <label for="k">Top k</label>
+    <input id="k" type="number" value="5" min="1" max="20">
+
+    <button id="runBtn" disabled>Run traced retrieval</button>
+    <button class="ghost" id="chatBtn" disabled>Run normal chat request</button>
+  </aside>
+
+  <section>
+    <div class="banner warn">
+      This console calls <code>/api/debug/retrieval-trace</code>, which is admin-gated and
+      must be disabled in production. It reports counts and document ids for excluded
+      chunks — never their text.
+    </div>
+    <div id="error"></div>
+
+    <div class="metrics">
+      <div class="metric allowed"><div class="n" id="mAllowed">—</div><div class="k">chunks returned</div></div>
+      <div class="metric blocked"><div class="n" id="mBlocked">—</div><div class="k">chunks excluded</div></div>
+      <div class="metric"><div class="n" id="mLatency">—</div><div class="k">retrieval ms</div></div>
+      <div class="metric"><div class="n" id="mRole">—</div><div class="k">acting role</div></div>
+    </div>
+
+    <h2>Filter sent to the vector database</h2>
+    <pre id="filter">Run a query to see the filter expression.</pre>
+
+    <h2>Permitted chunks</h2>
+    <div id="chunks"><div class="empty">No results yet.</div></div>
+
+    <h2>Excluded document ids</h2>
+    <pre id="excluded">—</pre>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const api = () => $('api').value.replace(/\/$/, '');
+let signedIn = false;
+
+function setStatus(up, text) {
+  $('dot').classList.toggle('up', up);
+  $('statusText').textContent = text;
+}
+function showError(msg) {
+  $('error').innerHTML = msg ? `<div class="banner err">${msg}</div>` : '';
+}
+
+async function call(path, body) {
+  const res = await fetch(api() + path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = { detail: text }; }
+  if (!res.ok) throw new Error(`${res.status} — ${data.detail || 'request failed'}`);
+  return data;
+}
+
+$('loginBtn').onclick = async () => {
+  showError('');
+  try {
+    const me = await call('/auth/login', { email: $('email').value, password: $('password').value });
+    signedIn = true;
+    setStatus(true, `signed in as ${me.email || $('email').value}`);
+    $('principal').hidden = false;
+    $('pRole').textContent = me.role ?? '—';
+    $('pClear').textContent = me.clearance ?? '—';
+    $('pTenant').textContent = (me.tenant_id ?? '—').toString().slice(0, 8);
+    $('runBtn').disabled = false;
+    $('chatBtn').disabled = false;
+  } catch (e) {
+    signedIn = false;
+    setStatus(false, 'sign-in failed');
+    showError(e.message);
+  }
+};
+
+$('runBtn').onclick = async () => {
+  showError('');
+  $('runBtn').disabled = true;
+  const t0 = performance.now();
+  try {
+    const r = await call('/api/debug/retrieval-trace', {
+      query: $('query').value,
+      as_user: $('email').value,
+      k: Number($('k').value),
+    });
+    const ms = Math.round(performance.now() - t0);
+
+    $('mAllowed').textContent = r.permitted.length;
+    $('mBlocked').textContent = r.excluded_count;
+    $('mLatency').textContent = ms;
+    $('mRole').textContent = r.principal.role;
+    $('filter').textContent = JSON.stringify(r.filter, null, 2);
+    $('excluded').textContent = r.excluded_document_ids?.length
+      ? r.excluded_document_ids.join('\n') : 'none';
+
+    $('chunks').innerHTML = r.permitted.length
+      ? r.permitted.map(c => `
+        <div class="chunk">
+          <div class="meta">
+            <span>score ${Number(c.score).toFixed(4)}</span>
+            <span>doc ${String(c.document_id).slice(0, 8)}</span>
+            <span>${(c.allowed_roles || []).map(x => `<span class="tag">${x}</span>`).join('')}</span>
+          </div>
+          <div class="body">${escapeHtml(c.preview || '')}</div>
+        </div>`).join('')
+      : `<div class="empty">Zero permitted chunks. If the excluded count is above zero,
+         the filter is doing its job — matching content exists that this role cannot read.</div>`;
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    $('runBtn').disabled = false;
+  }
+};
+
+$('chatBtn').onclick = async () => {
+  showError('');
+  try {
+    const r = await call('/chat', { query: $('query').value });
+    $('chunks').innerHTML = `<div class="chunk"><div class="meta"><span>chat response</span></div>
+      <div class="body">${escapeHtml(r.answer || '')}</div></div>`;
+    $('mAllowed').textContent = (r.citations || []).length;
+  } catch (e) {
+    showError(e.message);
+  }
+};
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+setStatus(false, 'not connected');
+</script>
+</body>
+</html>

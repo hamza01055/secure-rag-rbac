@@ -1,0 +1,39 @@
+{
+  "queries": [
+    {
+      "id": "q1-public-fact",
+      "query": "what is the travel allowance per trip",
+      "as_user": "intern@acme.test",
+      "relevant_chunk_docs": ["Employee_Handbook.md"],
+      "forbidden_docs": ["Executive_Compensation_2026.md", "Q3_Hiring_Plan.md"]
+    },
+    {
+      "id": "q2-canary-blocked",
+      "query": "what is the severance multiplier for officers",
+      "as_user": "intern@acme.test",
+      "relevant_chunk_docs": [],
+      "forbidden_docs": ["Executive_Compensation_2026.md"]
+    },
+    {
+      "id": "q3-canary-permitted",
+      "query": "what is the severance multiplier for officers",
+      "as_user": "hr@acme.test",
+      "relevant_chunk_docs": ["Executive_Compensation_2026.md"],
+      "forbidden_docs": []
+    },
+    {
+      "id": "q4-departmental",
+      "query": "how many engineering requisitions open in Q3",
+      "as_user": "eng@acme.test",
+      "relevant_chunk_docs": ["Q3_Hiring_Plan.md"],
+      "forbidden_docs": ["Executive_Compensation_2026.md"]
+    },
+    {
+      "id": "q5-followup-phrasing",
+      "query": "hey can you tell me the parking pass process, thanks",
+      "as_user": "intern@acme.test",
+      "relevant_chunk_docs": ["Employee_Handbook.md"],
+      "forbidden_docs": ["Executive_Compensation_2026.md"]
+    }
+  ]
+}

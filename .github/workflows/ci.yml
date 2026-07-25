@@ -1,0 +1,49 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Install
+        run: pip install -r backend/requirements-dev.txt
+
+      # Architectural boundaries first: it is fast, and a violation makes every
+      # test below less meaningful.
+      - name: Architectural boundaries
+        run: python scripts/lint_boundaries.py
+
+      - name: Lint
+        run: ruff check backend/app backend/tests
+
+      - name: Tests
+        run: cd backend && python -m pytest -q
+        env:
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost/test
+          JWT_SECRET: ${{ '0123456789abcdef0123456789abcdef0123456789' }}
+          EMBEDDING_PROVIDER: local
+
+  # Adversarial permission tests against a live stack. A failure here is a
+  # release blocker, not a warning.
+  leak-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack
+        run: |
+          cp .env.example .env
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+          echo "POSTGRES_PASSWORD=ci-password" >> .env
+          docker compose up -d --build
+          sleep 25
+      - name: Seed
+        run: docker compose exec -T api python -m seeds.seed
+      - name: Permission leak tests
+        run: |
+          pip install httpx
+          python scripts/verify_rbac.py --canary "Project Nightingale severance"
