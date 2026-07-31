@@ -1,5 +1,6 @@
 # Secure RAG with RBAC
 
+
 An enterprise retrieval-augmented generation system where authorization is
 enforced **inside** the vector search, not after it, and where retrieval quality
 is a measured property rather than a hope.
